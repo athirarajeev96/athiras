@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NumPy Slicing Sandbox: Master the Lockers</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Premium Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for beautiful symbols -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        body {
+            background-color: #0b0f19;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(249, 115, 22, 0.12) 0%, transparent 40%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 24px;
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            color: #f1f5f9;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 1350px;
+            background: rgba(15, 23, 42, 0.9);
+            border-radius: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(16px);
+        }
+
+        /* Slide "School Locker" Graphic representation */
+        .locker {
+            perspective: 1000px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .locker-card {
+            border: 2px solid #312e81;
+            background: linear-gradient(135deg, #1e1b4b, #312e81);
+            border-radius: 1rem;
+            position: relative;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+
+        /* Sliced Active state: Glowing door open */
+        .locker.active-slice .locker-card {
+            border-color: #f97316;
+            background: linear-gradient(135deg, #7c2d12, #ea580c);
+            transform: translateY(-10px) scale(1.05);
+            box-shadow: 0 20px 25px -5px rgba(234, 88, 12, 0.4);
+        }
+
+        .locker.active-slice .locker-number {
+            background-color: #fef08a;
+            color: #7c2d12;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .locker.active-slice .locker-handle {
+            background-color: #fef08a;
+            transform: rotate(-15deg);
+        }
+
+        /* Drag & Drop Zone Styles */
+        .drop-zone {
+            height: 76px;
+            width: 110px;
+            border: 2px dashed rgba(249, 115, 22, 0.35);
+            border-radius: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(30, 27, 75, 0.4);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        /* Subtle pulse on empty drop zones to guide placement */
+        .drop-zone:empty {
+            animation: target-pulse 2s infinite alternate;
+        }
+
+        @keyframes target-pulse {
+            0% { border-color: rgba(249, 115, 22, 0.2); background-color: rgba(30, 27, 75, 0.2); }
+            100% { border-color: rgba(249, 115, 22, 0.6); background-color: rgba(30, 27, 75, 0.5); }
+        }
+
+        .drop-zone::after {
+            content: attr(data-label);
+            position: absolute;
+            bottom: -24px;
+            font-size: 10px;
+            font-weight: 800;
+            color: #94a3b8;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .drop-zone.drag-over {
+            border-color: #f97316;
+            background-color: rgba(249, 115, 22, 0.15);
+            transform: scale(1.08);
+            box-shadow: 0 0 20px rgba(249, 115, 22, 0.35);
+        }
+
+        .draggable-token {
+            cursor: grab;
+            user-select: none;
+            touch-action: none;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .draggable-token:active { cursor: grabbing; }
+        .dragging { opacity: 0.3; transform: scale(0.9); }
+
+        .progress-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.15);
+            transition: all 0.3s ease;
+        }
+        .progress-dot.active { 
+            background: #f97316; 
+            transform: scale(1.3); 
+            box-shadow: 0 0 12px rgba(249, 115, 22, 0.7);
+        }
+        .progress-dot.completed { background: #10b981; }
+
+        /* Custom toggle design for slide theme selection */
+        .theme-accent {
+            color: #f97316;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- Dashboard Header -->
+        <header class="bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-950 p-6 px-10 border-b border-white/10 flex flex-col md:flex-row gap-4 justify-between items-center">
+            <div>
+                <span class="text-xs font-bold text-amber-500 uppercase tracking-widest block mb-1">Slide Companion Tool</span>
+                <h1 class="text-2xl font-black tracking-tight text-white uppercase flex items-center gap-3">
+                    <i class="fa-solid fa-shapes text-orange-500"></i>
+                    NumPy Slicing <span class="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-500">Sandbox</span>
+                </h1>
+            </div>
+            
+            <div class="flex items-center gap-6">
+                <!-- Sound Effect Control Toggle -->
+                <button id="sound-toggle" class="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-xs px-3.5 py-2 rounded-xl border border-white/10 transition-all font-semibold">
+                    <i class="fa-solid fa-volume-high text-orange-400" id="sound-icon"></i>
+                    <span>Audio FX</span>
+                </button>
+
+                <!-- Course Progress Tracker -->
+                <div class="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-xl border border-white/5">
+                    <span class="text-[10px] text-slate-400 uppercase font-black tracking-widest">Modules</span>
+                    <div class="flex gap-2.5" id="progress-container"></div>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex flex-col lg:flex-row gap-10 p-8 lg:p-10">
+            <!-- Left Panel: Lockers & Metaphor Rules -->
+            <div class="w-full lg:w-[440px] flex flex-col gap-6">
+                <!-- Array Visualizer (School Lockers) -->
+                <div class="bg-slate-950/60 p-6 rounded-2xl border border-white/10 shadow-lg">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Active Array Shelf</span>
+                        <span class="text-[11px] font-mono text-indigo-400">arr = np.array([...])</span>
+                    </div>
+
+                    <!-- Lockers row containing numbers & handles -->
+                    <div class="grid grid-cols-4 sm:grid-cols-8 gap-3 py-2" id="locker-grid">
+                        <!-- Dynamic lockers injected by JS -->
+                    </div>
+
+                    <div class="mt-4 flex justify-between items-center bg-black/40 p-3 rounded-xl border border-white/5">
+                        <span class="text-[11px] font-bold text-slate-400">Position System:</span>
+                        <span class="text-[11px] font-mono text-amber-400 font-black flex items-center gap-1.5" id="index-system-indicator">
+                            <span class="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping"></span>
+                            Positive Indices
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Goal & Objective -->
+                <div class="bg-gradient-to-br from-indigo-950/40 to-slate-900/60 p-6 rounded-2xl border border-orange-500/20 shadow-lg relative overflow-hidden group">
+                    <div class="absolute -right-12 -bottom-12 text-white/5 text-9xl font-black group-hover:scale-110 transition-transform duration-500">
+                        <i class="fa-solid fa-bullseye"></i>
+                    </div>
+                    <span class="text-xs font-black text-amber-500 uppercase tracking-widest block mb-1">Target Output</span>
+                    <div class="font-mono text-4xl text-white font-black tracking-wide" id="target-output-display">
+                        [20, 30, 40]
+                    </div>
+                </div>
+
+                <!-- Slide Context Helper -->
+                <div class="bg-indigo-950/30 p-6 rounded-2xl border border-indigo-500/10 flex-grow flex flex-col justify-between">
+                    <div>
+                        <span class="text-xs font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+                            <i class="fa-solid fa-chalkboard-user text-amber-400"></i>
+                            Slide Guide Blueprint
+                        </span>
+                        <p class="mt-3 text-sm text-slate-300 leading-relaxed font-medium" id="hint-box">
+                            Selecting array subsets works just like picking lockers. Use the index to start, stop, and configure custom steps!
+                        </p>
+                    </div>
+                    
+                    <div class="mt-6 pt-4 border-t border-indigo-500/10 text-xs font-mono text-slate-400">
+                        <span class="text-amber-500 font-black">Recipe:</span> array[start : stop : step]
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Code Builder Board & Instructions -->
+            <div class="flex-1 flex flex-col gap-8">
+                
+                <!-- NEW: Interactive Quick-Start Training Ribbon -->
+                <div class="bg-gradient-to-r from-slate-950 to-indigo-950 border border-indigo-500/20 p-4 rounded-2xl">
+                    <div class="text-xs font-black text-amber-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-graduation-cap"></i> Quick Start Tutorial Guide
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+                        <div class="flex items-start gap-2.5 bg-white/5 p-2.5 rounded-xl">
+                            <div class="w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center font-bold text-white text-[10px] shrink-0 mt-0.5">1</div>
+                            <div>
+                                <p class="font-bold text-white mb-0.5">Select a Token</p>
+                                <p class="text-slate-400 leading-normal"><strong>Click directly</strong> on any option in the Token Rack below to place it automatically.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-2.5 bg-white/5 p-2.5 rounded-xl">
+                            <div class="w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center font-bold text-white text-[10px] shrink-0 mt-0.5">2</div>
+                            <div>
+                                <p class="font-bold text-white mb-0.5">Fill Code Slots</p>
+                                <p class="text-slate-400 leading-normal">Fill the dashed <strong>Start, Stop</strong>, and optional <strong>Step</strong> boxes to write your slice syntax.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-2.5 bg-white/5 p-2.5 rounded-xl">
+                            <div class="w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center font-bold text-white text-[10px] shrink-0 mt-0.5">3</div>
+                            <div>
+                                <p class="font-bold text-white mb-0.5">Run Slicing Code</p>
+                                <p class="text-slate-400 leading-normal">Click the bright amber <strong class="text-amber-400">Execute Slice</strong> button to run your compiled program.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-2.5 bg-white/5 p-2.5 rounded-xl">
+                            <div class="w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center font-bold text-white text-[10px] shrink-0 mt-0.5">4</div>
+                            <div>
+                                <p class="font-bold text-white mb-0.5">Observe Lockers</p>
+                                <p class="text-slate-400 leading-normal">Watch correct lockers automatically <strong>swing open and glow orange</strong> if your code compiles!</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slicing Workspace Console -->
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-slate-200 text-lg flex items-center gap-2">
+                            <i class="fa-solid fa-code text-orange-500"></i>
+                            Syntax Assembly Console
+                        </h3>
+                        <span class="text-[10px] font-mono text-slate-500 uppercase tracking-widest bg-slate-900 px-3 py-1 rounded-md border border-white/5">python environment</span>
+                    </div>
+
+                    <!-- Builder Frame with interactive slots -->
+                    <div class="flex flex-wrap items-center justify-center gap-4 bg-slate-950/40 p-10 rounded-2xl border border-white/5 shadow-inner">
+                        <div class="drop-zone" data-index="0" data-label="Array"></div>
+                        <div class="text-5xl font-mono text-indigo-500 font-light select-none">[</div>
+                        <div class="drop-zone" data-index="1" data-label="Start"></div>
+                        <div class="text-5xl font-mono text-indigo-500 font-light select-none">:</div>
+                        <div class="drop-zone" data-index="2" data-label="Stop"></div>
+                        <div class="text-5xl font-mono text-indigo-500 font-light select-none" id="step-separator">:</div>
+                        <div class="drop-zone" data-index="3" data-label="Step" id="step-zone-container"></div>
+                        <div class="text-5xl font-mono text-indigo-500 font-light select-none">]</div>
+                    </div>
+                </div>
+
+                <!-- Draggable Token Inventory -->
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-slate-200 text-lg flex items-center gap-2">
+                            <i class="fa-solid fa-grip-vertical text-indigo-400"></i>
+                            Token Rack
+                        </h3>
+                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest bg-white/5 px-2 py-1 rounded">Click tokens below to auto-load</span>
+                    </div>
+
+                    <div id="token-inventory" class="flex flex-wrap gap-4 p-8 bg-slate-950/40 rounded-2xl border border-white/5 min-h-[130px] items-center justify-start">
+                        <!-- Dynamic Inventory elements -->
+                    </div>
+                </div>
+
+                <!-- Executions & Interactive Validation Controls -->
+                <div class="flex flex-col sm:flex-row items-center gap-6 mt-auto border-t border-white/5 pt-6">
+                    <div class="flex gap-3 w-full sm:w-auto">
+                        <button id="clear-btn" class="px-5 py-4 bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold rounded-xl border border-white/10 transition-all flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-arrows-rotate"></i>
+                            Reset
+                        </button>
+                        <button id="check-btn" class="flex-1 sm:flex-initial px-10 py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-black rounded-xl shadow-[0_4px_25px_rgba(249,115,22,0.35)] hover:from-orange-600 hover:to-amber-600 transition-all duration-300 active:scale-95 uppercase tracking-wider text-sm flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-play"></i>
+                            Execute Slice
+                        </button>
+                    </div>
+
+                    <!-- Feedback Alert System -->
+                    <div id="feedback-alert" class="hidden w-full sm:flex-1 p-4 rounded-xl text-sm font-bold flex items-center gap-2 transition-all"></div>
+
+                    <button id="next-btn" class="hidden w-full sm:w-auto px-10 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black rounded-xl shadow-[0_4px_25px_rgba(16,185,129,0.35)] hover:from-emerald-600 hover:to-teal-600 transition-all duration-300 uppercase tracking-wider text-sm flex items-center justify-center gap-2">
+                        Next Chapter <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Web Audio API Retro Synthesizer Engine -->
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let soundEnabled = true;
+
+        function playSynthSound(type) {
+            if (!soundEnabled) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'click') {
+                    osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.05);
+                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.06);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.06);
+                } else if (type === 'drop') {
+                    osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.12);
+                } else if (type === 'success') {
+                    // Upward arpeggio
+                    const freqs = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                    freqs.forEach((f, i) => {
+                        const noteOsc = audioCtx.createOscillator();
+                        const noteGain = audioCtx.createGain();
+                        noteOsc.connect(noteGain);
+                        noteGain.connect(audioCtx.destination);
+                        noteOsc.frequency.setValueAtTime(f, audioCtx.currentTime + i * 0.08);
+                        noteGain.gain.setValueAtTime(0.1, audioCtx.currentTime + i * 0.08);
+                        noteGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.08 + 0.2);
+                        noteOsc.start(audioCtx.currentTime + i * 0.08);
+                        noteOsc.stop(audioCtx.currentTime + i * 0.08 + 0.22);
+                    });
+                } else if (type === 'error') {
+                    // Sad buzzing sound
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                    osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.3);
+                    gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.35);
+                }
+            } catch (e) {
+                console.warn("Audio synthesis error: ", e);
+            }
+        }
+
+        const soundToggle = document.getElementById('sound-toggle');
+        const soundIcon = document.getElementById('sound-icon');
+        soundToggle.onclick = () => {
+            soundEnabled = !soundEnabled;
+            if (soundEnabled) {
+                soundIcon.className = "fa-solid fa-volume-high text-orange-400";
+                playSynthSound('click');
+            } else {
+                soundIcon.className = "fa-solid fa-volume-xmark text-slate-500";
+            }
+        };
+    </script>
+
+    <!-- Sandbox Logic Configuration -->
+    <script>
+        const levels = [
+            {
+                title: "Basic Range",
+                target: "[20, 30, 40]",
+                hint: "Locate values 20, 30, and 40. Start at index 1 and terminate before the boundary fence at index 4 (since the stop index is always excluded!).",
+                answer: { arr: 'arr', start: '1', stop: '4', step: '' },
+                tokens: ['arr', '1', '4', '0'],
+                hideStep: true,
+                indexType: 'pos'
+            },
+            {
+                title: "Step Jumps",
+                target: "[10, 30, 50, 70]",
+                hint: "We want every alternate locker value! Start at index 0, stop at index 8 (the very end), and pass 2 as the custom step.",
+                answer: { arr: 'arr', start: '0', stop: '8', step: '2' },
+                tokens: ['arr', '0', '8', '2', '5'],
+                hideStep: false,
+                indexType: 'pos'
+            },
+            {
+                title: "Negative Indexing",
+                target: "[80]",
+                hint: "NumPy counts backward using negative coordinates. The last locker is designated as index -1. To fetch only 80, set start to -1 and leave stop empty.",
+                answer: { arr: 'arr', start: '-1', stop: ' ', step: '' },
+                tokens: ['arr', '-1', ' ', '-2'],
+                hideStep: true,
+                indexType: 'neg'
+            },
+            {
+                title: "Negative Range",
+                target: "[60, 70]",
+                hint: "Value 60 is at index -3, and 80 is at index -1. Slices stop just before the designated index, so begin at -3 and stop at -1.",
+                answer: { arr: 'arr', start: '-3', stop: '-1', step: '' },
+                tokens: ['arr', '-3', '-1', '-2', '1'],
+                hideStep: true,
+                indexType: 'neg'
+            },
+            {
+                title: "Reverse Slicing",
+                target: "[80, 70, 60, 50, 40, 30, 20, 10]",
+                hint: "Reversing a whole shelf is easy with a step of -1. Leave start and stop fields blank so NumPy knows to query the entire locker row backwards.",
+                answer: { arr: 'arr', start: ' ', stop: ' ', step: '-1' },
+                tokens: ['arr', '-1', ' ', '0', '8'],
+                hideStep: false,
+                indexType: 'neg'
+            },
+            {
+                title: "Implicit Slicing",
+                target: "[10, 20, 30]",
+                hint: "If you leave the start index empty, NumPy defaults straight to index 0! Designate only a stop index of 3 to fetch the first three numbers.",
+                answer: { arr: 'arr', start: ' ', stop: '3', step: '' },
+                tokens: ['arr', '3', ' ', '0', '4'],
+                hideStep: true,
+                indexType: 'pos'
+            }
+        ];
+
+        let currentLevel = 0;
+        const arrayData = [10, 20, 30, 40, 50, 60, 70, 80];
+        
+        const tokenInventory = document.getElementById('token-inventory');
+        const dropZones = document.querySelectorAll('.drop-zone');
+        const feedbackAlert = document.getElementById('feedback-alert');
+        const nextBtn = document.getElementById('next-btn');
+        const checkBtn = document.getElementById('check-btn');
+        const clearBtn = document.getElementById('clear-btn');
+
+        function buildProgressIndicator() {
+            const container = document.getElementById('progress-container');
+            container.innerHTML = '';
+            levels.forEach((_, i) => {
+                const dot = document.createElement('div');
+                dot.className = 'progress-dot';
+                container.appendChild(dot);
+            });
+        }
+
+        // Build Locker visual elements with sliding animation elements
+        function drawLockers(indexType) {
+            const grid = document.getElementById('locker-grid');
+            grid.innerHTML = '';
+            arrayData.forEach((val, i) => {
+                const label = indexType === 'pos' ? i : (i - 8);
+                const locker = document.createElement('div');
+                locker.className = 'locker flex flex-col items-center';
+                locker.setAttribute('data-index', i);
+                locker.innerHTML = `
+                    <span class="text-[10px] font-black text-slate-500 mb-1.5 font-mono">${label}</span>
+                    <div class="locker-card w-full aspect-[2/3] flex flex-col items-center justify-between p-2">
+                        <!-- Key tag number matching slide aesthetic -->
+                        <div class="locker-number text-[8px] font-black text-slate-300 bg-black/40 px-1.5 py-0.5 rounded border border-white/10 font-mono select-none self-start">
+                            ${i}
+                        </div>
+                        
+                        <!-- Value displayed clearly inside -->
+                        <div class="text-lg font-black text-white font-mono my-auto tracking-tight select-none">
+                            ${val}
+                        </div>
+
+                        <!-- Mini Locker dial handle structure -->
+                        <div class="w-1.5 h-4 bg-slate-400 rounded-sm self-end mb-1 locker-handle transition-transform origin-center"></div>
+                    </div>
+                `;
+                grid.appendChild(locker);
+            });
+        }
+
+        // Dynamic Slicing highlight calculations for Visualizer matching slide bounds
+        function highlightTargetLockers(startValue, stopValue, stepValue) {
+            document.querySelectorAll('.locker').forEach(el => el.classList.remove('active-slice'));
+
+            let step = parseInt(stepValue);
+            if (isNaN(step)) step = 1;
+
+            let start;
+            if (startValue === '' || startValue === ' ') {
+                start = step < 0 ? 7 : 0;
+            } else {
+                start = parseInt(startValue);
+                if (start < 0) start = 8 + start;
+            }
+
+            let stop;
+            if (stopValue === '' || stopValue === ' ') {
+                stop = step < 0 ? -1 : 8;
+            } else {
+                stop = parseInt(stopValue);
+                if (stop < 0) stop = 8 + stop;
+            }
+
+            let matches = [];
+            if (step > 0) {
+                for (let i = start; i < stop && i < 8; i += step) {
+                    if (i >= 0) matches.push(i);
+                }
+            } else {
+                for (let i = start; i > stop && i >= 0; i += step) {
+                    if (i < 8) matches.push(i);
+                }
+            }
+
+            matches.forEach(idx => {
+                const locker = document.querySelector(`.locker[data-index="${idx}"]`);
+                if (locker) locker.classList.add('active-slice');
+            });
+        }
+
+        function initLevel(index) {
+            currentLevel = index;
+            const lv = levels[index];
+
+            document.getElementById('target-output-display').innerText = lv.target;
+            document.getElementById('hint-box').innerText = lv.hint;
+            
+            const systemIndicator = document.getElementById('index-system-indicator');
+            if (lv.indexType === 'pos') {
+                systemIndicator.innerHTML = `<span class="w-2 h-2 bg-amber-500 rounded-full animate-ping mr-1"></span> Positive Indexing`;
+            } else {
+                systemIndicator.innerHTML = `<span class="w-2 h-2 bg-orange-500 rounded-full animate-ping mr-1"></span> Negative Indexing`;
+            }
+
+            drawLockers(lv.indexType);
+
+            // Update Progress Tracking dots
+            const dots = document.querySelectorAll('.progress-dot');
+            dots.forEach((dot, i) => {
+                dot.className = 'progress-dot ' + (i < index ? 'completed' : (i === index ? 'active' : ''));
+            });
+
+            // Adjust Steps visibility according to puzzle parameters
+            const stepZone = document.getElementById('step-zone-container');
+            const stepColon = document.getElementById('step-separator');
+            if (lv.hideStep) {
+                stepZone.style.display = 'none';
+                stepColon.style.display = 'none';
+            } else {
+                stepZone.style.display = 'flex';
+                stepColon.style.display = 'block';
+            }
+
+            // Flush prior selections
+            dropZones.forEach(zone => zone.innerHTML = '');
+            feedbackAlert.className = 'hidden w-full sm:flex-1 p-4 rounded-xl text-sm font-bold flex items-center gap-2 transition-all';
+            nextBtn.classList.add('hidden');
+            checkBtn.style.display = 'inline-flex';
+
+            tokenInventory.innerHTML = '';
+            lv.tokens.forEach(val => {
+                const token = document.createElement('div');
+                token.className = 'draggable-token bg-gradient-to-br from-indigo-950 to-indigo-900 hover:from-indigo-900 hover:to-indigo-850 text-slate-100 hover:text-white px-5 py-3 rounded-xl font-mono font-bold shadow-lg border border-white/10 hover:border-orange-500/50 text-lg transition-all duration-200';
+                token.innerText = val;
+                token.draggable = true;
+                setupTokenEvents(token);
+                tokenInventory.appendChild(token);
+            });
+        }
+
+        function setupTokenEvents(token) {
+            // Drag Interactions
+            token.addEventListener('dragstart', () => {
+                window.activeDraggedToken = token;
+                token.classList.add('dragging');
+                playSynthSound('click');
+            });
+            token.addEventListener('dragend', () => {
+                token.classList.remove('dragging');
+            });
+
+            // Universal Click Placement Support (No Drag Fallback for high interaction & touch layouts)
+            token.addEventListener('click', () => {
+                if (token.parentNode === tokenInventory) {
+                    for (const zone of dropZones) {
+                        const activeLevel = levels[currentLevel];
+                        if (activeLevel.hideStep && zone.id === 'step-zone-container') continue;
+                        if (zone.children.length === 0) {
+                            moveTokenToZone(zone, token);
+                            break;
+                        }
+                    }
+                }
+            });
+
+            // Mobile Touch Slicing Support
+            token.addEventListener('touchstart', () => {
+                window.activeDraggedToken = token;
+            }, {passive: true});
+
+            token.addEventListener('touchend', (e) => {
+                const touchLoc = e.changedTouches[0];
+                const hoverEl = document.elementFromPoint(touchLoc.clientX, touchLoc.clientY);
+                const zone = hoverEl?.closest('.drop-zone');
+                if (zone) {
+                    moveTokenToZone(zone, token);
+                } else {
+                    tokenInventory.appendChild(token);
+                }
+            });
+        }
+
+        function moveTokenToZone(zone, token) {
+            if (zone.children.length > 0) {
+                tokenInventory.appendChild(zone.children[0]);
+            }
+            zone.appendChild(token);
+            playSynthSound('drop');
+        }
+
+        dropZones.forEach(zone => {
+            zone.addEventListener('dragover', e => e.preventDefault());
+            zone.addEventListener('drop', () => {
+                if (window.activeDraggedToken) {
+                    moveTokenToZone(zone, window.activeDraggedToken);
+                }
+            });
+            zone.addEventListener('click', () => {
+                if (zone.children.length > 0) {
+                    tokenInventory.appendChild(zone.children[0]);
+                    playSynthSound('click');
+                }
+            });
+        });
+
+        clearBtn.onclick = () => {
+            playSynthSound('click');
+            initLevel(currentLevel);
+        };
+
+        checkBtn.onclick = () => {
+            const slots = Array.from(dropZones).map(z => {
+                const element = z.children[0]?.innerText || '';
+                return element.trim() === '' ? '' : element;
+            });
+            const answer = levels[currentLevel].answer;
+
+            const isCorrect = slots[0] === answer.arr && 
+                              (slots[1] === answer.start || (slots[1] === '' && answer.start === ' ')) && 
+                              (slots[2] === answer.stop || (slots[2] === '' && answer.stop === ' ')) && 
+                              (levels[currentLevel].hideStep || (slots[3] === answer.step || (slots[3] === '' && answer.step === ' ')));
+
+            feedbackAlert.classList.remove('hidden');
+            if (isCorrect) {
+                playSynthSound('success');
+                highlightTargetLockers(slots[1], slots[2], levels[currentLevel].hideStep ? '1' : slots[3]);
+
+                feedbackAlert.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400 text-lg"></i> <span>VALID CODE! Slicing logic successfully compiled. Output matched.</span>`;
+                feedbackAlert.className = "w-full sm:flex-1 p-4 rounded-xl text-emerald-300 bg-emerald-950/40 border border-emerald-500/30 font-bold flex items-center gap-2 transition-all block";
+                checkBtn.style.display = 'none';
+                nextBtn.classList.remove('hidden');
+            } else {
+                playSynthSound('error');
+                feedbackAlert.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-red-400 text-lg"></i> <span>OUT OF BOUNDS: Array mismatch! Check the index limits & step values.</span>`;
+                feedbackAlert.className = "w-full sm:flex-1 p-4 rounded-xl text-red-300 bg-red-950/40 border border-red-500/30 font-bold flex items-center gap-2 transition-all block";
+            }
+        };
+
+        nextBtn.onclick = () => {
+            playSynthSound('click');
+            if (currentLevel < levels.length - 1) {
+                initLevel(currentLevel + 1);
+            } else {
+                // Slicing complete screen matching slide deck wrap-up
+                document.querySelector('.app-container').innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-full text-center space-y-6 py-20 px-8">
+                        <div class="text-7xl animate-bounce">🏆</div>
+                        <h2 class="text-4xl font-extrabold text-white tracking-tight uppercase">Master Slicer Certified!</h2>
+                        <p class="text-slate-400 text-lg max-w-lg mx-auto leading-relaxed">
+                            You have successfully solved all the visual slicing modules in the presentation manual using positive, negative, and custom stepping intervals!
+                        </p>
+                        <button onclick="location.reload()" class="px-12 py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-black rounded-xl shadow-[0_4px_25px_rgba(249,115,22,0.4)] hover:from-orange-600 hover:to-amber-600 transition-all duration-300 uppercase tracking-wider text-sm">
+                            Restart Curriculum
+                        </button>
+                    </div>
+                `;
+            }
+        };
+
+        buildProgressIndicator();
+        initLevel(0);
+    </script>
+</body>
+</html>
